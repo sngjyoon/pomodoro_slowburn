@@ -1,0 +1,128 @@
+// Turns focus sessions into a GitHub-style 53 × 7 grid of daily focus time.
+//
+// All date math uses local calendar days via `new Date(y, m, d + n)`, never
+// "+ 86_400_000", so DST transitions (23h / 25h days) bucket correctly.
+
+import type { FocusSession } from './sessions'
+
+export const WEEKS = 53
+export type Level = 0 | 1 | 2 | 3 | 4
+
+/** Minimum minutes for levels 1–4. Fixed so colors mean the same thing over time. */
+export const LEVEL_THRESHOLDS_MIN = [1, 30, 90, 180] as const
+
+export function levelFor(ms: number): Level {
+  const min = ms / 60_000
+  let level: Level = 0
+  LEVEL_THRESHOLDS_MIN.forEach((t, i) => {
+    if (min >= t) level = (i + 1) as Level
+  })
+  return level
+}
+
+export function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+export function addDays(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
+}
+
+/** Local calendar date as YYYY-MM-DD. */
+export function dayKey(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/**
+ * Focused ms per local day. A session spanning midnight is split across days in
+ * proportion to its wall-clock time on each side (pauses are assumed evenly spread).
+ */
+export function focusByDay(sessions: readonly FocusSession[]): Map<string, number> {
+  const byDay = new Map<string, number>()
+  const add = (key: string, ms: number) => byDay.set(key, (byDay.get(key) ?? 0) + ms)
+
+  for (const s of sessions) {
+    const wall = s.end - s.start
+    if (wall <= 0) {
+      add(dayKey(new Date(s.start)), s.focusedMs)
+      continue
+    }
+    let cursor = s.start
+    while (cursor < s.end) {
+      const next = Math.min(s.end, addDays(startOfDay(new Date(cursor)), 1).getTime())
+      add(dayKey(new Date(cursor)), (s.focusedMs * (next - cursor)) / wall)
+      cursor = next
+    }
+  }
+  return byDay
+}
+
+export interface HeatmapCell {
+  key: string
+  date: Date
+  ms: number
+  level: Level
+}
+
+export interface MonthLabel {
+  col: number
+  label: string
+}
+
+export interface Heatmap {
+  /** WEEKS columns of 7 days (Sunday first). Days after today are null. */
+  weeks: (HeatmapCell | null)[][]
+  months: MonthLabel[]
+  totalMs: number
+}
+
+export function buildHeatmap(sessions: readonly FocusSession[], now: number): Heatmap {
+  const byDay = focusByDay(sessions)
+  const today = startOfDay(new Date(now))
+  const gridStart = addDays(today, -today.getDay() - (WEEKS - 1) * 7)
+
+  let totalMs = 0
+  const weeks: (HeatmapCell | null)[][] = []
+  for (let w = 0; w < WEEKS; w++) {
+    const col: (HeatmapCell | null)[] = []
+    for (let d = 0; d < 7; d++) {
+      const date = addDays(gridStart, w * 7 + d)
+      if (date > today) {
+        col.push(null)
+        continue
+      }
+      const key = dayKey(date)
+      const ms = byDay.get(key) ?? 0
+      totalMs += ms
+      col.push({ key, date, ms, level: levelFor(ms) })
+    }
+    weeks.push(col)
+  }
+
+  return { weeks, months: monthLabels(weeks), totalMs }
+}
+
+/** A label at each column whose Sunday starts a new month (like GitHub). */
+function monthLabels(weeks: (HeatmapCell | null)[][]): MonthLabel[] {
+  const labels: MonthLabel[] = []
+  let prevMonth = -1
+  weeks.forEach((col, i) => {
+    const sunday = col[0]
+    if (!sunday) return
+    const month = sunday.date.getMonth()
+    if (month !== prevMonth) labels.push({ col: i, label: sunday.date.toLocaleString('en-US', { month: 'short' }) })
+    prevMonth = month
+  })
+  // The first column's partial month would collide with the next label.
+  if (labels.length > 1 && labels[0].col === 0 && labels[1].col < 3) labels.shift()
+  return labels
+}
+
+/** "2h 05m", "45m", "0m". Rounds to the nearest minute. */
+export function formatDuration(ms: number): string {
+  const totalMin = Math.round(ms / 60_000)
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
+}

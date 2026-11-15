@@ -47,7 +47,8 @@ src/
     Heatmap/           # 52-week grid, legend, tooltip
   lib/
     timer.ts           # pure timer state machine
-    sessions.ts        # session records + storage
+    sessions.ts        # session record type, validation, append
+    storage.ts         # localStorage load/save for settings, timer, sessions
     heatmap.ts         # day bucketing + intensity levels
   styles/
     tokens.css         # colors, spacing, radii, fonts (light + dark)

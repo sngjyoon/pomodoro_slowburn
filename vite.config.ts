@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     include: ['src/**/*.test.ts'],
-    passWithNoTests: true,
+    // Fixed DST-observing zone so date tests are deterministic and cover DST.
+    env: { TZ: 'America/New_York' },
   },
 })
