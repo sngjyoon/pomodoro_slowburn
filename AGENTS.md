@@ -45,11 +45,16 @@ src/
   components/
     Timer/             # settings, countdown, controls
     Heatmap/           # 52-week grid, legend, tooltip
+  hooks/
+    usePomodoro.ts     # wires lib/ to React state, storage, and ticking
+    alerts.ts          # phase-end chime + browser notification
   lib/
     timer.ts           # pure timer state machine
     sessions.ts        # session record type, validation, append
     storage.ts         # localStorage load/save for settings, timer, sessions
     heatmap.ts         # day bucketing + intensity levels
+    tags.ts            # tag list: defaults, add, remove/archive
+    breakdown.ts       # per-tag totals + tag filter
   styles/
     tokens.css         # colors, spacing, radii, fonts (light + dark)
 ```
@@ -81,12 +86,27 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
 - Storage key prefix: `slowburn:`. Version the stored shape (`slowburn:v1:sessions`) so migrations are possible.
 - Wrap every `localStorage` access in try/catch; the app must work (without history) if storage is unavailable.
 
+### Tags
+
+- Each focus session carries one optional tag (`tag: string | null`, the tag's id). Defaults: Study, Reading, Research, Teaching. Users can add and delete tags.
+- A tag is required to start a focus phase (from idle or between phases). "Start focus" stays disabled with a hint until an active tag is selected; `start()` also refuses. Starting a break or resuming a paused phase needs no tag.
+- The tag lives on the timer state. A focus phase records the tag selected when it started; the tag can change only while idle or waiting between phases, never mid-phase. Stopping keeps the tag selected for next time.
+- Deleting a tag that any session uses (or that the running phase will record) archives it: hidden from the picker, still shown in the breakdown. Re-adding the same name restores it.
+- Sessions from before tags existed load as untagged. Unknown tag ids count as untagged.
+- Storage key: `slowburn:v1:tags`. No stored key means first run, which gets the defaults.
+
+### Breakdown and filter
+
+- Under the heatmap, a "By tag" list shows each tag's focus time over the same 52-week window as the heatmap, most first, with a relative bar, duration, streak, and share. Untagged time (legacy sessions) is not listed; shares are of tagged time.
+- Streaks: consecutive local days with at least 1 minute of that tag (the same rule that colors a heatmap square). The current streak counts back from today, or from yesterday if today has nothing yet, so it isn't broken until a full day is missed. Also show the longest streak ever.
+- Selecting a row filters the heatmap to that tag (headline becomes "N hours of <Tag> in the last year"); selecting it again, or "Show all tags", clears it. One tag at a time. The filter is not persisted.
+
 ### Heatmap
 
 - 53 columns × 7 rows (weeks × weekdays), ending at today, weeks start on Sunday (match GitHub).
 - Bucket sessions by the **user's local calendar day** of the session start. A session spanning midnight is split across both days.
 - Intensity: 5 levels (0 = none, 1–4). Use fixed thresholds in minutes (e.g. 1–29, 30–89, 90–179, 180+) so colors mean the same thing over time; do not scale to the max day.
-- Month labels across the top, weekday labels (Mon/Wed/Fri) on the left, a "Less ▢▢▢▢▢ More" legend, and a total like "123 hours focused in the last year".
+- Month labels across the top, weekday labels (Mon/Wed/Fri) on the left, a "Less ▢▢▢▢▢ More" legend, and a headline like "412 sessions across 213 days in the last year" (sessions started in the window; days with a colored square). Filtered: "86 Teaching sessions across 54 days in the last year".
 - Hover/focus on a cell shows a tooltip: date + focused time (e.g. "Nov 15, 2026 — 2h 05m").
 - Cells are keyboard-focusable and have `aria-label`s.
 
@@ -134,4 +154,4 @@ Use fake timers / injected `now` rather than real waiting.
 
 ## Out of scope (for now)
 
-Accounts, sync, backend, light theme, task lists, configurable long-break interval, statistics beyond the heatmap. Add to this list or move items into scope deliberately.
+Accounts, sync, backend, light theme, task lists, multiple tags per session, tag colors, configurable long-break interval, statistics beyond the heatmap. Add to this list or move items into scope deliberately.

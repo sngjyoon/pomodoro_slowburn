@@ -1,0 +1,268 @@
+.heatmap {
+  --cell: 13px;
+  --gap: 3px;
+  position: relative;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.heatmap-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.heatmap-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: 'opsz' 32;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.heatmap-header-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.heatmap-legend span:first-child {
+  margin-right: var(--space-1);
+}
+.heatmap-legend span:last-child {
+  margin-left: var(--space-1);
+}
+
+.heatmap-scroll {
+  overflow-x: auto;
+  /* Room for the focus ring on edge cells. */
+  padding: 4px;
+  margin: -4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: auto max-content;
+  grid-template-areas:
+    '. months'
+    'days cells';
+  row-gap: var(--space-1);
+  width: max-content;
+  margin-inline: auto;
+}
+
+.heatmap-months {
+  grid-area: months;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), var(--cell));
+  column-gap: var(--gap);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.heatmap-months span {
+  white-space: nowrap;
+}
+
+.heatmap-weekdays {
+  grid-area: days;
+  /* Stays visible while the grid scrolls on narrow screens. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding-right: var(--space-2);
+  background: var(--surface);
+  /* Cover the scroll container's 4px focus-ring padding so no cells peek out on the left. */
+  box-shadow: -4px 0 0 var(--surface);
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell));
+  row-gap: var(--gap);
+  font-size: 0.75rem;
+  line-height: var(--cell);
+  color: var(--text-muted);
+}
+
+.heatmap-cells {
+  grid-area: cells;
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell));
+  grid-auto-columns: var(--cell);
+  grid-auto-flow: column;
+  gap: var(--gap);
+}
+
+.cell {
+  display: block;
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: var(--radius-sm);
+  background: var(--heat-0);
+}
+.cell[data-level='1'] {
+  background: var(--heat-1);
+}
+.cell[data-level='2'] {
+  background: var(--heat-2);
+}
+.cell[data-level='3'] {
+  background: var(--heat-3);
+}
+.cell[data-level='4'] {
+  background: var(--heat-4);
+}
+.cell[data-today] {
+  box-shadow: inset 0 0 0 1px var(--text-muted);
+}
+.cell-empty {
+  background: transparent;
+}
+.heatmap-cells .cell:focus-visible {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.heatmap-empty {
+  margin: var(--space-3) 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.heatmap-tip {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, calc(-100% - 8px));
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ---- Breakdown by tag ---- */
+
+.breakdown {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.breakdown-list {
+  list-style: none;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 180px) minmax(0, 1fr) 5.5em 3em;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 10px var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+.breakdown-row:hover {
+  background: var(--surface-2);
+}
+.breakdown-row[aria-pressed='true'] {
+  background: var(--surface-2);
+}
+.breakdown-row[data-dimmed] {
+  opacity: 0.45;
+}
+.breakdown-row[data-dimmed]:hover {
+  opacity: 1;
+}
+
+.breakdown-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.breakdown-archived {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.breakdown-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.breakdown-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--heat-3);
+}
+.breakdown-row[aria-pressed='true'] .breakdown-bar span {
+  background: var(--accent);
+}
+
+.breakdown-tag {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breakdown-streak {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  align-self: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.breakdown-streak svg {
+  flex: none;
+}
+
+.breakdown-time,
+.breakdown-share {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+.breakdown-share {
+  color: var(--text-muted);
+}
+
+@media (max-width: 520px) {
+  .breakdown-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: var(--space-2);
+  }
+  .breakdown-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

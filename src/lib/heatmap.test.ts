@@ -10,6 +10,7 @@ const session = (start: number, end: number, focusedMs = end - start): FocusSess
   start,
   end,
   focusedMs,
+  tag: null,
 })
 
 it('runs in a DST-observing time zone', () => {
@@ -115,10 +116,21 @@ describe('buildHeatmap', () => {
     expect(h.weeks[0][0]).toMatchObject({ ms: 45 * M, level: 2 })
     expect(h.weeks[WEEKS - 1][3]).toMatchObject({ ms: 180 * M, level: 4 })
     expect(h.totalMs).toBe(225 * M)
+    expect(h.sessionCount).toBe(2)
+    expect(h.activeDays).toBe(2)
   })
 
-  it('has zero total with no sessions', () => {
+  it('counts a day as active only with at least a minute of focus', () => {
+    // 23:59:30 to 00:24:30: 30 seconds land on the first day, which stays uncolored.
+    const start = at(2026, 11, 16, 23, 59) + 30_000
+    const h = buildHeatmap([session(start, start + 25 * M)], now)
+    expect(h.activeDays).toBe(1)
+    expect(h.sessionCount).toBe(1)
+  })
+
+  it('has zero totals with no sessions', () => {
     expect(totalMs).toBe(0)
+    expect(buildHeatmap([], now)).toMatchObject({ sessionCount: 0, activeDays: 0 })
   })
 
   it('labels the column where each month starts', () => {

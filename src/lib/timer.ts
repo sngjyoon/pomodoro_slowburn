@@ -75,6 +75,8 @@ export interface TimerState {
   pausedAt: number | null
   /** Focus phases completed since the timer left idle (drives long breaks). */
   completedFocus: number
+  /** Tag id recorded on focus sessions; null means untagged. Survives stop. */
+  tag: string | null
 }
 
 export const IDLE: TimerState = {
@@ -86,6 +88,7 @@ export const IDLE: TimerState = {
   phaseStartedAt: null,
   pausedAt: null,
   completedFocus: 0,
+  tag: null,
 }
 
 export function phaseDurationMs(phase: Phase, settings: Settings): number {
@@ -98,6 +101,14 @@ export function elapsedMs(state: TimerState, now: number): number {
   return Math.min(state.durationMs, Math.max(0, state.elapsedBeforeMs + running))
 }
 
+/** mm:ss, rounding up so the display reaches 00:00 exactly when the phase ends. */
+export function formatClock(ms: number): string {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000))
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
 export function remainingMs(state: TimerState, now: number): number {
   return state.durationMs - elapsedMs(state, now)
 }
@@ -107,17 +118,36 @@ export function isAwaitingStart(state: TimerState): boolean {
   return state.status === 'paused' && state.phaseStartedAt === null
 }
 
+/** The tag can change before starting and between phases, but not mid-phase. */
+export function canChangeTag(state: TimerState): boolean {
+  return state.status === 'idle' || isAwaitingStart(state)
+}
+
+export function setTag(state: TimerState, tag: string | null): TimerState {
+  return canChangeTag(state) ? { ...state, tag } : state
+}
+
 /** Settings may only change before a pomodoro starts. */
 export function canEditSettings(state: TimerState): boolean {
   return state.status === 'idle'
 }
 
-/** Starts from idle, or resumes a paused phase. No-op while running. */
+/** Starting a new focus phase (from idle, or waiting between phases) requires a tag. */
+export function needsTag(state: TimerState): boolean {
+  return state.status === 'idle' || (isAwaitingStart(state) && state.phase === 'focus')
+}
+
+export function canStart(state: TimerState): boolean {
+  return state.status !== 'running' && !(needsTag(state) && state.tag === null)
+}
+
+/** Starts from idle, or resumes a paused phase. No-op while running, or when a needed tag is missing. */
 export function start(state: TimerState, settings: Settings, now: number): TimerState {
-  if (state.status === 'running') return state
+  if (!canStart(state)) return state
   if (state.status === 'idle') {
     return {
       ...IDLE,
+      tag: state.tag,
       status: 'running',
       phase: 'focus',
       durationMs: phaseDurationMs('focus', settings),
@@ -163,12 +193,17 @@ export function tick(state: TimerState, settings: Settings, now: number): TickRe
     let completedFocus = s.completedFocus
     if (s.phase === 'focus') {
       completedFocus += 1
-      sessions.push({ start: s.phaseStartedAt ?? endedAt - s.durationMs, end: endedAt, focusedMs: s.durationMs })
+      sessions.push({
+        start: s.phaseStartedAt ?? endedAt - s.durationMs,
+        end: endedAt,
+        focusedMs: s.durationMs,
+        tag: s.tag,
+      })
     }
     ended.push(s.phase)
 
     const phase = nextPhase(s.phase, completedFocus, settings)
-    const base = { ...IDLE, phase, durationMs: phaseDurationMs(phase, settings), completedFocus }
+    const base = { ...IDLE, phase, durationMs: phaseDurationMs(phase, settings), completedFocus, tag: s.tag }
     s = settings.autoStart
       ? { ...base, status: 'running', runStartedAt: endedAt, phaseStartedAt: endedAt }
       : { ...base, status: 'paused', pausedAt: endedAt }
@@ -189,11 +224,11 @@ export function stop(state: TimerState, settings: Settings, now: number): TickRe
     const focusedMs = elapsedMs(s, now)
     if (focusedMs >= MIN_SESSION_MS) {
       const end = s.status === 'paused' ? (s.pausedAt ?? now) : now
-      result.sessions.push({ start: s.phaseStartedAt, end, focusedMs })
+      result.sessions.push({ start: s.phaseStartedAt, end, focusedMs, tag: s.tag })
     }
   }
 
-  return { ...result, state: IDLE }
+  return { ...result, state: { ...IDLE, tag: s.tag } }
 }
 
 const PHASES: readonly string[] = ['focus', 'break', 'longBreak']
@@ -210,5 +245,7 @@ export function isTimerState(x: unknown): x is TimerState {
   if (!num(s.durationMs) || !num(s.elapsedBeforeMs) || !num(s.completedFocus)) return false
   if (!numOrNull(s.runStartedAt) || !numOrNull(s.phaseStartedAt) || !numOrNull(s.pausedAt)) return false
   if (s.status === 'running' && s.runStartedAt === null) return false
+  // `tag` was added after v1 shipped; a missing tag is fine and loads as null.
+  if (!(s.tag === undefined || s.tag === null || typeof s.tag === 'string')) return false
   return true
 }

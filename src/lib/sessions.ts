@@ -8,6 +8,8 @@ export interface FocusSession {
   end: number
   /** Time actually spent focusing; less than end - start if the phase was paused. */
   focusedMs: number
+  /** Tag id, or null when untagged. Older records without a tag load as null. */
+  tag: string | null
 }
 
 /** A session as produced by the timer, before it gets an id. */
@@ -27,13 +29,14 @@ export function isFocusSession(x: unknown): x is FocusSession {
     isFiniteNumber(s.end) &&
     isFiniteNumber(s.focusedMs) &&
     s.end >= s.start &&
-    s.focusedMs >= 0
+    s.focusedMs >= 0 &&
+    (s.tag === undefined || s.tag === null || typeof s.tag === 'string')
   )
 }
 
 /** Keeps the valid records from stored data and drops the rest, so one bad entry doesn't lose all history. */
 export function parseSessions(x: unknown): FocusSession[] {
-  return Array.isArray(x) ? x.filter(isFocusSession) : []
+  return Array.isArray(x) ? x.filter(isFocusSession).map((s) => ({ ...s, tag: s.tag ?? null })) : []
 }
 
 /** Returns a new list with the given sessions appended; sessions under MIN_SESSION_MS are dropped. */

@@ -75,14 +75,25 @@ export interface Heatmap {
   weeks: (HeatmapCell | null)[][]
   months: MonthLabel[]
   totalMs: number
+  /** Sessions that started inside the window. */
+  sessionCount: number
+  /** Days with at least one minute of focus (a colored square). */
+  activeDays: number
+}
+
+/** The heatmap's time window: from the first grid Sunday up to the end of today (exclusive). */
+export function heatmapWindow(now: number): { from: number; to: number } {
+  const today = startOfDay(new Date(now))
+  return { from: addDays(today, -today.getDay() - (WEEKS - 1) * 7).getTime(), to: addDays(today, 1).getTime() }
 }
 
 export function buildHeatmap(sessions: readonly FocusSession[], now: number): Heatmap {
   const byDay = focusByDay(sessions)
   const today = startOfDay(new Date(now))
-  const gridStart = addDays(today, -today.getDay() - (WEEKS - 1) * 7)
+  const gridStart = new Date(heatmapWindow(now).from)
 
   let totalMs = 0
+  let activeDays = 0
   const weeks: (HeatmapCell | null)[][] = []
   for (let w = 0; w < WEEKS; w++) {
     const col: (HeatmapCell | null)[] = []
@@ -95,12 +106,15 @@ export function buildHeatmap(sessions: readonly FocusSession[], now: number): He
       const key = dayKey(date)
       const ms = byDay.get(key) ?? 0
       totalMs += ms
+      if (levelFor(ms) > 0) activeDays += 1
       col.push({ key, date, ms, level: levelFor(ms) })
     }
     weeks.push(col)
   }
 
-  return { weeks, months: monthLabels(weeks), totalMs }
+  const { from, to } = heatmapWindow(now)
+  const sessionCount = sessions.filter((s) => s.start >= from && s.start < to).length
+  return { weeks, months: monthLabels(weeks), totalMs, sessionCount, activeDays }
 }
 
 /** A label at each column whose Sunday starts a new month (like GitHub). */

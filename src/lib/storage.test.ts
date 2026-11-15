@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { appendSessions, MIN_SESSION_MS, parseSessions } from './sessions'
-import { KEYS, loadSessions, loadSettings, loadTimer, saveSessions, saveSettings, type KeyValueStore } from './storage'
+import {
+  KEYS,
+  loadSessions,
+  loadSettings,
+  loadTags,
+  loadTimer,
+  saveSessions,
+  saveSettings,
+  saveTags,
+  type KeyValueStore,
+} from './storage'
+import { DEFAULT_TAGS } from './tags'
 import { DEFAULT_SETTINGS, IDLE } from './timer'
 
 const memoryStore = (init: Record<string, string> = {}): KeyValueStore => {
@@ -20,7 +31,7 @@ const throwingStore: KeyValueStore = {
   },
 }
 
-const valid = { id: 'a', start: 1000, end: 2000, focusedMs: 1000 }
+const valid = { id: 'a', start: 1000, end: 2000, focusedMs: 1000, tag: null }
 
 describe('sessions', () => {
   it('keeps valid records and drops invalid ones', () => {
@@ -33,12 +44,12 @@ describe('sessions', () => {
     const out = appendSessions(
       [valid],
       [
-        { start: 0, end: MIN_SESSION_MS, focusedMs: MIN_SESSION_MS },
-        { start: 0, end: 1000, focusedMs: MIN_SESSION_MS - 1 },
+        { start: 0, end: MIN_SESSION_MS, focusedMs: MIN_SESSION_MS, tag: null },
+        { start: 0, end: 1000, focusedMs: MIN_SESSION_MS - 1, tag: null },
       ],
       () => `id${++n}`,
     )
-    expect(out).toEqual([valid, { id: 'id1', start: 0, end: MIN_SESSION_MS, focusedMs: MIN_SESSION_MS }])
+    expect(out).toEqual([valid, { id: 'id1', start: 0, end: MIN_SESSION_MS, focusedMs: MIN_SESSION_MS, tag: null }])
   })
 })
 
@@ -66,5 +77,19 @@ describe('storage', () => {
       expect(loadSessions(store)).toEqual([])
       expect(saveSessions([valid], store)).toBe(false)
     }
+  })
+})
+
+describe('migration and tags', () => {
+  it('loads sessions saved before tags existed as untagged', () => {
+    const store = memoryStore({ [KEYS.sessions]: JSON.stringify([{ id: 'a', start: 1, end: 2, focusedMs: 1 }]) })
+    expect(loadSessions(store)).toEqual([{ id: 'a', start: 1, end: 2, focusedMs: 1, tag: null }])
+  })
+
+  it('gives default tags on first run, then respects the stored list', () => {
+    expect(loadTags(memoryStore())).toEqual(DEFAULT_TAGS)
+    const store = memoryStore()
+    saveTags([], store)
+    expect(loadTags(store)).toEqual([])
   })
 })
