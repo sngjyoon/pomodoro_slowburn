@@ -16,6 +16,15 @@ export function filterSessions(sessions: readonly FocusSession[], filter: TagFil
   return filter === null ? sessions : sessions.filter((s) => sessionKey(s) === filter)
 }
 
+/**
+ * Sessions whose tag is a known tag (archived ones included). Untagged sessions from before tags
+ * were required, and unknown tag ids, are left out of the heatmap and the breakdown alike.
+ */
+export function taggedSessions(sessions: readonly FocusSession[], tags: readonly Tag[]): readonly FocusSession[] {
+  const ids = new Set(tags.map((t) => t.id))
+  return sessions.filter((s) => s.tag !== null && ids.has(s.tag))
+}
+
 /** Focused ms of a session that falls inside [from, to), assuming pauses are evenly spread. */
 export function clippedMs(s: FocusSession, from: number, to: number): number {
   const wall = s.end - s.start

@@ -92,12 +92,12 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
 - A tag is required to start a focus phase (from idle or between phases). "Start focus" stays disabled with a hint until an active tag is selected; `start()` also refuses. Starting a break or resuming a paused phase needs no tag.
 - The tag lives on the timer state. A focus phase records the tag selected when it started; the tag can change only while idle or waiting between phases, never mid-phase. Stopping keeps the tag selected for next time.
 - Deleting a tag that any session uses (or that the running phase will record) archives it: hidden from the picker, still shown in the breakdown. Re-adding the same name restores it.
-- Sessions from before tags existed load as untagged. Unknown tag ids count as untagged.
+- Sessions from before tags existed load as untagged. Unknown tag ids count as untagged. Untagged sessions are kept in storage but not shown anywhere.
 - Storage key: `slowburn:v1:tags`. No stored key means first run, which gets the defaults.
 
 ### Breakdown and filter
 
-- Under the heatmap, a "By tag" list shows each tag's focus time over the same 52-week window as the heatmap, most first, with a relative bar, duration, streak, and share. Untagged time (legacy sessions) is not listed; shares are of tagged time.
+- Under the heatmap, a "By tag" list shows each tag's focus time over the same 52-week window as the heatmap, most first, with a relative bar, duration, streak, and share. Untagged time (legacy sessions, unknown tag ids) is not listed and does not count toward the heatmap, its headline, or "focused today"; shares are of tagged time. The data stays in storage.
 - Streaks: consecutive local days with at least 1 minute of that tag (the same rule that colors a heatmap square). The current streak counts back from today, or from yesterday if today has nothing yet, so it isn't broken until a full day is missed. Also show the longest streak ever.
 - Selecting a row filters the heatmap to that tag (headline becomes "N hours of <Tag> in the last year"); selecting it again, or "Show all tags", clears it. One tag at a time. The filter is not persisted.
 

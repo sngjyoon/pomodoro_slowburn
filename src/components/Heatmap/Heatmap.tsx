@@ -47,11 +47,28 @@ export function Heatmap({ data, todayKey, breakdown, filter, onFilter }: Props) 
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const tabIndex = activeIndex !== null && cells[activeIndex] ? activeIndex : todayIndex
 
+  // Size cells in whole pixels so every square renders identically, filling the card's width.
+  const daysRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState<{ cell: number; gap: number; pad: number } | null>(null)
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const measure = () => {
+      const width = el.clientWidth - 8 - (daysRef.current?.offsetWidth ?? 0)
+      const next = cellSize(width)
+      setSize((prev) => (prev && prev.cell === next.cell && prev.gap === next.gap && prev.pad === next.pad ? prev : next))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // Start scrolled to the most recent week on narrow screens.
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollLeft = el.scrollWidth
-  }, [])
+  }, [size])
 
   const showTip = (el: HTMLElement, cell: HeatmapCell) => {
     const panel = panelRef.current?.getBoundingClientRect()
@@ -74,7 +91,12 @@ export function Heatmap({ data, todayKey, breakdown, filter, onFilter }: Props) 
   }
 
   return (
-    <section className="heatmap panel" aria-labelledby="heatmap-heading" ref={panelRef}>
+    <section
+      className="heatmap panel"
+      aria-labelledby="heatmap-heading"
+      ref={panelRef}
+      style={size ? { ['--cell' as string]: `${size.cell}px`, ['--gap' as string]: `${size.gap}px` } : undefined}
+    >
       <header className="heatmap-header">
         <h2 id="heatmap-heading" aria-live="polite">
           {headline(data, filterName)}
@@ -90,7 +112,13 @@ export function Heatmap({ data, todayKey, breakdown, filter, onFilter }: Props) 
       </header>
 
       <div className="heatmap-scroll" ref={scrollRef} onScroll={() => setTip(null)}>
-        <div className="heatmap-grid" style={{ ['--weeks' as string]: WEEKS }}>
+        <div
+          className="heatmap-grid"
+          style={{
+            ['--weeks' as string]: WEEKS,
+            marginLeft: size?.pad,
+          }}
+        >
           <div className="heatmap-months" aria-hidden="true">
             {data.months.map((m) => (
               <span key={m.col} style={{ gridColumn: m.col + 1 }}>
@@ -98,7 +126,7 @@ export function Heatmap({ data, todayKey, breakdown, filter, onFilter }: Props) 
               </span>
             ))}
           </div>
-          <div className="heatmap-weekdays" aria-hidden="true">
+          <div className="heatmap-weekdays" aria-hidden="true" ref={daysRef}>
             {WEEKDAY_LABELS.map((d, i) => (
               <span key={i}>{d}</span>
             ))}
@@ -149,6 +177,17 @@ export function Heatmap({ data, todayKey, breakdown, filter, onFilter }: Props) 
       )}
     </section>
   )
+}
+
+const MIN_PITCH = 13
+const MAX_PITCH = 20
+
+/** Whole-pixel cell + gap whose 53 columns fill `width` as closely as possible. */
+function cellSize(width: number): { cell: number; gap: number; pad: number } {
+  const pitch = Math.max(MIN_PITCH, Math.min(MAX_PITCH, Math.floor((width + 4) / WEEKS)))
+  const gap = pitch >= 16 ? 4 : 3
+  const used = WEEKS * pitch - gap
+  return { cell: pitch - gap, gap, pad: Math.max(0, Math.floor((width - used) / 2)) }
 }
 
 function Legend() {

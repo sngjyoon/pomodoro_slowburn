@@ -1,6 +1,6 @@
 // Runs with TZ=America/New_York (see vite.config.ts).
 import { describe, expect, it } from 'vitest'
-import { UNTAGGED, clippedMs, filterSessions, streakFor, tagBreakdown } from './breakdown'
+import { UNTAGGED, clippedMs, filterSessions, streakFor, tagBreakdown, taggedSessions } from './breakdown'
 import { buildHeatmap } from './heatmap'
 import type { FocusSession } from './sessions'
 import { DEFAULT_TAGS } from './tags'
@@ -111,5 +111,17 @@ describe('streakFor', () => {
   it('is attached to each tag row', () => {
     const rows = tagBreakdown(sessions, DEFAULT_TAGS, now)
     expect(rows.find((r) => r.key === 'research')?.streak).toEqual({ current: 2, longest: 2 })
+  })
+})
+
+describe('taggedSessions', () => {
+  it('keeps sessions with a known tag, including archived ones, and drops the rest', () => {
+    const tags = [
+      { id: 'study', name: 'Study' },
+      { id: 'old', name: 'Old', archived: true },
+    ]
+    const mk = (id: string, tag: string | null) => ({ id, start: 0, end: 60_000, focusedMs: 60_000, tag })
+    const kept = taggedSessions([mk('a', 'study'), mk('b', 'old'), mk('c', null), mk('d', 'gone')], tags)
+    expect(kept.map((s) => s.id)).toEqual(['a', 'b'])
   })
 })

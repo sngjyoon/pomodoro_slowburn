@@ -35,6 +35,9 @@
   font-size: 0.8125rem;
   color: var(--text-muted);
 }
+.heatmap-legend .cell {
+  flex: none;
+}
 .heatmap-legend span:first-child {
   margin-right: var(--space-1);
 }
@@ -59,7 +62,6 @@
     'days cells';
   row-gap: var(--space-1);
   width: max-content;
-  margin-inline: auto;
 }
 
 .heatmap-months {
