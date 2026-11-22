@@ -12,6 +12,8 @@ import {
   type TimerState,
 } from '../../lib/timer'
 import type { AddTagResult, Tag } from '../../lib/tags'
+import type { Backup } from '../../lib/backup'
+import type { ImportResult } from '../../hooks/usePomodoro'
 import { Countdown } from './Countdown'
 import { TagPicker } from './TagPicker'
 import { SettingsPanel } from './SettingsPanel'
@@ -32,6 +34,8 @@ interface Props {
   onStart: () => void
   onPause: () => void
   onStop: () => void
+  onExport: () => Backup
+  onImport: (text: string) => ImportResult
 }
 
 export function Timer(props: Props) {
@@ -122,7 +126,13 @@ export function Timer(props: Props) {
         />
       </div>
 
-      <SettingsPanel settings={settings} locked={!idle} onChange={onSettingsChange} />
+      <SettingsPanel
+        settings={settings}
+        locked={!idle}
+        onChange={onSettingsChange}
+        onExport={props.onExport}
+        onImport={props.onImport}
+      />
     </section>
   )
 }

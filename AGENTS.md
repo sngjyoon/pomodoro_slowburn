@@ -55,6 +55,7 @@ src/
     heatmap.ts         # day bucketing + intensity levels
     tags.ts            # tag list: defaults, add, remove/archive
     breakdown.ts       # per-tag totals + tag filter
+    backup.ts          # history export/import (JSON file) + merge
   styles/
     tokens.css         # colors, spacing, radii, fonts (light + dark)
 ```
@@ -85,6 +86,7 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
 - Early-stopped focus time counts only when the "Count early stops" toggle is on. Ignore sessions shorter than 1 minute either way.
 - Storage key prefix: `slowburn:`. Version the stored shape (`slowburn:v1:sessions`) so migrations are possible.
 - Wrap every `localStorage` access in try/catch; the app must work (without history) if storage is unavailable.
+- History is per browser and per origin. Settings has a "History" row (under "Count early stops") with Export (downloads `slowburn-backup-YYYY-MM-DD.json` holding sessions + tags) and Import (merges a backup file). Import never deletes: sessions dedupe by id, tags match by id then by name, existing tags keep their local name and archived state. Like other settings, export/import are disabled (greyed out) while the timer runs.
 
 ### Tags
 
@@ -132,6 +134,7 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
   --heat-4: #9dc904;
   ```
 - Font: system UI stack or Inter; tabular numerals for all times.
+- Locked settings: while the timer runs, the whole settings card, including History, is greyed out (dimmed + grayscale) and "Stop the timer to change settings" slides down out from under the settings card in the accent color, hand-written font (`--font-hand`: Informal Roman, falling back to Permanent Marker). It slides back up when the timer stops. The visible text is `aria-hidden`; a visually hidden live region carries the message.
 - Responsive: on narrow screens the heatmap scrolls horizontally inside its card and starts scrolled to the most recent week; the page itself never scrolls sideways.
 - Respect `prefers-reduced-motion`.
 

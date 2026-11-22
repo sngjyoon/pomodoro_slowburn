@@ -47,6 +47,8 @@ export default function App() {
         onStart={p.start}
         onPause={p.pause}
         onStop={p.stop}
+        onExport={p.exportBackup}
+        onImport={p.importBackup}
       />
       <Heatmap data={heatmap} todayKey={todayKey} breakdown={breakdown} filter={filter} onFilter={setFilter} />
     </main>

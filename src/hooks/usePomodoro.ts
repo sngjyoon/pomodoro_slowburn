@@ -1,6 +1,7 @@
 // Connects the pure timer to React, storage, and alerts.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { buildBackup, mergeHistory, parseBackup, type Backup } from '../lib/backup'
 import { appendSessions, type FocusSession } from '../lib/sessions'
 import {
   loadSessions,
@@ -46,7 +47,11 @@ export interface Pomodoro {
   start: () => void
   pause: () => void
   stop: () => void
+  exportBackup: () => Backup
+  importBackup: (text: string) => ImportResult
 }
+
+export type ImportResult = { ok: true; addedSessions: number; addedTags: number } | { ok: false }
 
 export function usePomodoro(): Pomodoro {
   const [settings, setSettings] = useState(() => loadSettings())
@@ -158,5 +163,36 @@ export function usePomodoro(): Pomodoro {
     commit(stopTimer(timerRef.current, settingsRef.current, t), { silent: true })
   }, [commit])
 
-  return { settings, timer, sessions, tags, now, selectTag, addTag, removeTag, updateSettings, start, pause, stop }
+  const exportBackup = useCallback(
+    () => buildBackup({ sessions: sessionsRef.current, tags: tagsRef.current }, Date.now()),
+    [],
+  )
+
+  const importBackup = useCallback((text: string): ImportResult => {
+    const incoming = parseBackup(text)
+    if (!incoming) return { ok: false }
+    const merged = mergeHistory({ sessions: sessionsRef.current, tags: tagsRef.current }, incoming)
+    sessionsRef.current = merged.sessions
+    tagsRef.current = merged.tags
+    setSessions(merged.sessions)
+    setTags(merged.tags)
+    return { ok: true, addedSessions: merged.addedSessions, addedTags: merged.addedTags }
+  }, [])
+
+  return {
+    settings,
+    timer,
+    sessions,
+    tags,
+    now,
+    selectTag,
+    addTag,
+    removeTag,
+    updateSettings,
+    start,
+    pause,
+    stop,
+    exportBackup,
+    importBackup,
+  }
 }

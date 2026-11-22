@@ -1,65 +1,156 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { backupFileName, type Backup } from '../../lib/backup'
 import { LIMITS, type Settings } from '../../lib/timer'
+import type { ImportResult } from '../../hooks/usePomodoro'
 
 interface Props {
   settings: Settings
   locked: boolean
   onChange: (patch: Partial<Settings>) => void
+  onExport: () => Backup
+  onImport: (text: string) => ImportResult
 }
 
-export function SettingsPanel({ settings, locked, onChange }: Props) {
+const LOCKED_NOTE = 'Stop the timer to change settings'
+
+export function SettingsPanel({ settings, locked, onChange, onExport, onImport }: Props) {
   return (
-    <form className="settings panel" aria-label="Timer settings" onSubmit={(e) => e.preventDefault()}>
-      <fieldset disabled={locked}>
-        <legend className="visually-hidden">Durations</legend>
-        <MinutesField
-          label="Focus"
-          value={settings.focusMin}
-          limits={LIMITS.focusMin}
-          onCommit={(focusMin) => onChange({ focusMin })}
-        />
-        <MinutesField
-          label="Break"
-          value={settings.breakMin}
-          limits={LIMITS.breakMin}
-          onCommit={(breakMin) => onChange({ breakMin })}
-        />
-        {settings.longBreaksEnabled && (
+    <div className="settings-wrap">
+      <form className="settings panel" aria-label="Timer settings" onSubmit={(e) => e.preventDefault()}>
+        <fieldset disabled={locked}>
+          <legend className="visually-hidden">Durations</legend>
           <MinutesField
-            label="Long break"
-            value={settings.longBreakMin}
-            limits={LIMITS.longBreakMin}
-            onCommit={(longBreakMin) => onChange({ longBreakMin })}
+            label="Focus"
+            value={settings.focusMin}
+            limits={LIMITS.focusMin}
+            onCommit={(focusMin) => onChange({ focusMin })}
           />
-        )}
-      </fieldset>
+          <MinutesField
+            label="Break"
+            value={settings.breakMin}
+            limits={LIMITS.breakMin}
+            onCommit={(breakMin) => onChange({ breakMin })}
+          />
+          {settings.longBreaksEnabled && (
+            <MinutesField
+              label="Long break"
+              value={settings.longBreakMin}
+              limits={LIMITS.longBreakMin}
+              onCommit={(longBreakMin) => onChange({ longBreakMin })}
+            />
+          )}
+        </fieldset>
 
-      <fieldset disabled={locked} className="settings-toggles">
-        <legend className="visually-hidden">Options</legend>
-        <Toggle
-          label="Long breaks"
-          hint="Every 4th break runs longer"
-          checked={settings.longBreaksEnabled}
-          onChange={(longBreaksEnabled) => onChange({ longBreaksEnabled })}
-        />
-        <Toggle
-          label="Auto-start"
-          hint="Begin the next phase without a click"
-          checked={settings.autoStart}
-          onChange={(autoStart) => onChange({ autoStart })}
-        />
-        <Toggle
-          label="Count early stops"
-          hint="Keep focus time when you stop early"
-          checked={settings.countEarlyStops}
-          onChange={(countEarlyStops) => onChange({ countEarlyStops })}
-        />
-      </fieldset>
+        <fieldset disabled={locked} className="settings-toggles">
+          <legend className="visually-hidden">Options</legend>
+          <Toggle
+            label="Long breaks"
+            hint="Every 4th break runs longer"
+            checked={settings.longBreaksEnabled}
+            onChange={(longBreaksEnabled) => onChange({ longBreaksEnabled })}
+          />
+          <Toggle
+            label="Auto-start"
+            hint="Begin the next phase without a click"
+            checked={settings.autoStart}
+            onChange={(autoStart) => onChange({ autoStart })}
+          />
+          <Toggle
+            label="Count early stops"
+            hint="Keep focus time when you stop early"
+            checked={settings.countEarlyStops}
+            onChange={(countEarlyStops) => onChange({ countEarlyStops })}
+          />
+        </fieldset>
 
-      <p className="settings-note" aria-live="polite">
-        {locked ? 'Stop the timer to change settings.' : ' '}
+        <fieldset disabled={locked}>
+          <legend className="visually-hidden">History</legend>
+          <BackupControls onExport={onExport} onImport={onImport} />
+        </fieldset>
+
+        <p className="visually-hidden" aria-live="polite">
+          {locked ? `${LOCKED_NOTE}.` : ''}
+        </p>
+      </form>
+      {/* Decorative twin of the live region: slides out from under the card while locked. */}
+      <div className="settings-locked" data-shown={locked} aria-hidden="true">
+        <span>{LOCKED_NOTE}</span>
+      </div>
+    </div>
+  )
+}
+
+interface BackupControlsProps {
+  onExport: () => Backup
+  onImport: (text: string) => ImportResult
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** History lives in this browser only; export/import moves it between browsers. */
+function BackupControls({ onExport, onImport }: BackupControlsProps) {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [message, setMessage] = useState('')
+
+  const download = () => {
+    const backup = onExport()
+    const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = backupFileName(backup.exportedAt)
+    a.click()
+    URL.revokeObjectURL(url)
+    setMessage(`Exported ${plural(backup.sessions.length, 'session')}.`)
+  }
+
+  const upload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget
+    const file = input.files?.[0]
+    input.value = '' // allow choosing the same file again
+    if (!file) return
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setMessage('Couldn’t read that file.')
+      return
+    }
+    const r = onImport(text)
+    if (!r.ok) setMessage('That file isn’t a Slowburn backup.')
+    else if (r.addedSessions === 0 && r.addedTags === 0) setMessage('Nothing new to import.')
+    else
+      setMessage(
+        `Imported ${plural(r.addedSessions, 'session')}${r.addedTags ? ` and ${plural(r.addedTags, 'tag')}` : ''}.`,
+      )
+  }
+
+  return (
+    <div className="backup">
+      <div className="toggle-text">
+        <span className="toggle-label">History</span>
+        <span className="toggle-hint">Saved in this browser only</span>
+      </div>
+      <div className="backup-actions">
+        <button type="button" className="link-btn" onClick={download}>
+          Export
+        </button>
+        <button type="button" className="link-btn" onClick={() => fileInput.current?.click()}>
+          Import
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          className="visually-hidden"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={upload}
+        />
+      </div>
+      <p className="backup-message" aria-live="polite">
+        {message}
       </p>
-    </form>
+    </div>
   )
 }
 
