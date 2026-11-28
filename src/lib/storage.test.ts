@@ -5,10 +5,12 @@ import {
   loadSessions,
   loadSettings,
   loadTags,
+  loadTheme,
   loadTimer,
   saveSessions,
   saveSettings,
   saveTags,
+  saveTheme,
   type KeyValueStore,
 } from './storage'
 import { DEFAULT_TAGS } from './tags'
@@ -91,5 +93,18 @@ describe('migration and tags', () => {
     const store = memoryStore()
     saveTags([], store)
     expect(loadTags(store)).toEqual([])
+  })
+})
+
+describe('theme', () => {
+  it('defaults to auto, round-trips, and ignores junk or broken storage', () => {
+    expect(loadTheme(memoryStore())).toBe('auto')
+    const store = memoryStore()
+    saveTheme('light', store)
+    expect(loadTheme(store)).toBe('light')
+    expect(loadTheme(memoryStore({ [KEYS.theme]: '"purple"' }))).toBe('auto')
+    expect(loadTheme(memoryStore({ [KEYS.theme]: '{oops' }))).toBe('auto')
+    expect(loadTheme(throwingStore)).toBe('auto')
+    expect(loadTheme(null)).toBe('auto')
   })
 })

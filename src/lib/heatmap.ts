@@ -8,16 +8,20 @@ import type { FocusSession } from './sessions'
 export const WEEKS = 53
 export type Level = 0 | 1 | 2 | 3 | 4
 
-/** Minimum minutes for levels 1–4. Fixed so colors mean the same thing over time. */
-export const LEVEL_THRESHOLDS_MIN = [1, 30, 90, 180] as const
+/** A day needs at least this much focus to get a colored square (and count toward streaks). */
+export const ACTIVE_DAY_MIN_MS = 60_000
 
-export function levelFor(ms: number): Level {
-  const min = ms / 60_000
-  let level: Level = 0
-  LEVEL_THRESHOLDS_MIN.forEach((t, i) => {
-    if (min >= t) level = (i + 1) as Level
-  })
-  return level
+export function isActiveDay(ms: number): boolean {
+  return ms >= ACTIVE_DAY_MIN_MS
+}
+
+/**
+ * Level relative to the busiest day in view (like GitHub): levels 1–4 cover
+ * (0, ¼], (¼, ½], (½, ¾] and (¾, 1] of `maxMs`, so the busiest day is always 4.
+ */
+export function levelFor(ms: number, maxMs: number): Level {
+  if (!isActiveDay(ms) || maxMs <= 0) return 0
+  return Math.min(4, Math.max(1, Math.ceil((4 * ms) / maxMs))) as Level
 }
 
 export function startOfDay(d: Date): Date {
@@ -94,6 +98,7 @@ export function buildHeatmap(sessions: readonly FocusSession[], now: number): He
 
   let totalMs = 0
   let activeDays = 0
+  let maxMs = 0
   const weeks: (HeatmapCell | null)[][] = []
   for (let w = 0; w < WEEKS; w++) {
     const col: (HeatmapCell | null)[] = []
@@ -106,11 +111,14 @@ export function buildHeatmap(sessions: readonly FocusSession[], now: number): He
       const key = dayKey(date)
       const ms = byDay.get(key) ?? 0
       totalMs += ms
-      if (levelFor(ms) > 0) activeDays += 1
-      col.push({ key, date, ms, level: levelFor(ms) })
+      maxMs = Math.max(maxMs, ms)
+      if (isActiveDay(ms)) activeDays += 1
+      col.push({ key, date, ms, level: 0 })
     }
     weeks.push(col)
   }
+  // Levels need the window's busiest day, so they are set in a second pass.
+  for (const col of weeks) for (const cell of col) if (cell) cell.level = levelFor(cell.ms, maxMs)
 
   const { from, to } = heatmapWindow(now)
   const sessionCount = sessions.filter((s) => s.start >= from && s.start < to).length

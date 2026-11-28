@@ -47,7 +47,7 @@ export function Timer(props: Props) {
   const remaining = durationMs - elapsed
   const progress = durationMs > 0 ? elapsed / durationMs : 0
 
-  // Visual state: lime only while focus is actually running.
+  // Visual state: accent only while focus is actually running.
   const tone = timer.status === 'paused' && !awaiting ? 'paused' : timer.status === 'running' && timer.phase === 'focus' ? 'focus' : 'rest'
 
   const round = (timer.completedFocus % LONG_BREAK_EVERY) + 1

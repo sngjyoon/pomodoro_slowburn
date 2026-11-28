@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="auto">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
@@ -12,6 +12,14 @@
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..700&family=Instrument+Sans:wght@400..600&family=Permanent+Marker&display=swap"
     />
     <title>Slowburn</title>
+    <script>
+      // Apply the saved theme before first paint (see src/hooks/useTheme.ts).
+      try {
+        document.documentElement.dataset.theme = JSON.parse(localStorage.getItem('slowburn:v1:theme')) || 'auto'
+      } catch {
+        document.documentElement.dataset.theme = 'auto'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

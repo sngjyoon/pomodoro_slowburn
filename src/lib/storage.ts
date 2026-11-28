@@ -3,6 +3,7 @@
 
 import { parseSessions, type FocusSession } from './sessions'
 import { DEFAULT_TAGS, parseTags, type Tag } from './tags'
+import { parseTheme, type ThemePref } from './theme'
 import { IDLE, isTimerState, normalizeSettings, type Settings, type TimerState } from './timer'
 
 export const KEYS = {
@@ -10,6 +11,7 @@ export const KEYS = {
   timer: 'slowburn:v1:timer',
   sessions: 'slowburn:v1:sessions',
   tags: 'slowburn:v1:tags',
+  theme: 'slowburn:v1:theme',
 } as const
 
 /** The subset of the Storage API we use; tests pass an in-memory implementation. */
@@ -62,3 +64,6 @@ export function loadTags(store = browserStore()): Tag[] {
   return raw === undefined ? [...DEFAULT_TAGS] : parseTags(raw)
 }
 export const saveTags = (tags: readonly Tag[], store = browserStore()) => write(KEYS.tags, tags, store)
+
+export const loadTheme = (store = browserStore()): ThemePref => parseTheme(readRaw(KEYS.theme, store))
+export const saveTheme = (theme: ThemePref, store = browserStore()) => write(KEYS.theme, theme, store)

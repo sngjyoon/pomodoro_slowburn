@@ -1,6 +1,6 @@
 // Runs with TZ=America/New_York (see vite.config.ts) so DST cases are real.
 import { describe, expect, it } from 'vitest'
-import { WEEKS, addDays, buildHeatmap, dayKey, focusByDay, formatDuration, levelFor } from './heatmap'
+import { WEEKS, addDays, buildHeatmap, dayKey, focusByDay, formatDuration, isActiveDay, levelFor } from './heatmap'
 import type { FocusSession } from './sessions'
 
 const M = 60_000
@@ -18,20 +18,37 @@ it('runs in a DST-observing time zone', () => {
   expect(new Date(2026, 6, 15).getTimezoneOffset()).toBe(240)
 })
 
+describe('isActiveDay', () => {
+  it('needs at least one minute', () => {
+    expect(isActiveDay(0)).toBe(false)
+    expect(isActiveDay(0.5 * M)).toBe(false)
+    expect(isActiveDay(1 * M)).toBe(true)
+  })
+})
+
 describe('levelFor', () => {
+  const max = 400 * M
   it.each([
     [0, 0],
     [0.5 * M, 0],
     [1 * M, 1],
-    [29 * M, 1],
-    [30 * M, 2],
-    [89 * M, 2],
-    [90 * M, 3],
-    [179 * M, 3],
-    [180 * M, 4],
-    [600 * M, 4],
-  ])('%d ms → level %d', (ms, level) => {
-    expect(levelFor(ms)).toBe(level)
+    [100 * M, 1],
+    [101 * M, 2],
+    [200 * M, 2],
+    [201 * M, 3],
+    [300 * M, 3],
+    [301 * M, 4],
+    [400 * M, 4],
+  ])('%d ms of a 400m max → level %d', (ms, level) => {
+    expect(levelFor(ms, max)).toBe(level)
+  })
+
+  it('gives the busiest day level 4, however small', () => {
+    expect(levelFor(5 * M, 5 * M)).toBe(4)
+  })
+
+  it('is 0 when there is no max', () => {
+    expect(levelFor(10 * M, 0)).toBe(0)
   })
 })
 
@@ -113,11 +130,25 @@ describe('buildHeatmap', () => {
       ],
       now,
     )
-    expect(h.weeks[0][0]).toMatchObject({ ms: 45 * M, level: 2 })
+    // 45m is exactly ¼ of the busiest day (180m), so level 1.
+    expect(h.weeks[0][0]).toMatchObject({ ms: 45 * M, level: 1 })
     expect(h.weeks[WEEKS - 1][3]).toMatchObject({ ms: 180 * M, level: 4 })
     expect(h.totalMs).toBe(225 * M)
     expect(h.sessionCount).toBe(2)
     expect(h.activeDays).toBe(2)
+  })
+
+  it('scales levels to the busiest day inside the window only', () => {
+    const h = buildHeatmap(
+      [
+        session(at(2025, 11, 15, 0), at(2025, 11, 15, 20)), // 20h, before the window
+        session(at(2026, 11, 16, 9), at(2026, 11, 16, 9, 10)), // 10m
+        session(at(2026, 11, 17, 9), at(2026, 11, 17, 9, 40)), // 40m, busiest in window
+      ],
+      now,
+    )
+    expect(h.weeks[WEEKS - 1][1]).toMatchObject({ ms: 10 * M, level: 1 })
+    expect(h.weeks[WEEKS - 1][2]).toMatchObject({ ms: 40 * M, level: 4 })
   })
 
   it('counts a day as active only with at least a minute of focus', () => {

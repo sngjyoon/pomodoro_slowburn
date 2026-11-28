@@ -1,4 +1,6 @@
-/* Design tokens. Components use these variables; never hard-code colors elsewhere. */
+/* Design tokens. Components use these variables; never hard-code colors elsewhere.
+   Dark is the base theme. <html data-theme> is 'auto' | 'light' | 'dark'; light
+   values apply for 'light', and for 'auto' when the OS prefers light. */
 :root {
   color-scheme: dark;
 
@@ -14,17 +16,20 @@
   --text-muted: #8f8f8f;
   --text-faint: #5c5c5c;
 
-  /* Accent: used only where it carries meaning */
-  --accent: #9dc904;
-  --accent-hover: #b1db1f;
-  --accent-ink: #000000;
+  /* Accent: GitHub's emphasis blue (dark; the selected year next to the contribution graph).
+     Used only where it carries meaning. */
+  --accent: #1f6feb;
+  --accent-hover: #388bfd;
+  --accent-ink: #ffffff;
 
-  /* Heatmap levels 0–4 */
-  --heat-0: #1c1c1c;
-  --heat-1: #2f3d0a;
-  --heat-2: #4e6b06;
-  --heat-3: #769a05;
-  --heat-4: #9dc904;
+  --shadow: rgb(0 0 0 / 0.5);
+
+  /* Heatmap levels 0–4: GitHub's contribution-graph colors (dark) */
+  --heat-0: #161b22;
+  --heat-1: #0e4429;
+  --heat-2: #006d32;
+  --heat-3: #26a641;
+  --heat-4: #39d353;
 
   /* Type */
   --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
@@ -43,4 +48,64 @@
   --space-6: 64px;
 
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+/* The light values are listed twice because CSS can't share a block between a
+   selector and a media query. Keep the two in sync. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --surface-2: #eeeeeb;
+  --surface-3: #e2e2de;
+  --border: #e2e2de;
+
+  --text: #161616;
+  --text-muted: #6b6b6b;
+  --text-faint: #a8a8a4;
+
+  /* GitHub's link blue (light) */
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --accent-ink: #ffffff;
+
+  --shadow: rgb(0 0 0 / 0.12);
+
+  /* GitHub's contribution-graph colors (light) */
+  --heat-0: #ebedf0;
+  --heat-1: #9be9a8;
+  --heat-2: #40c463;
+  --heat-3: #30a14e;
+  --heat-4: #216e39;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme='auto'] {
+    color-scheme: light;
+
+    --bg: #f5f5f3;
+    --surface: #ffffff;
+    --surface-2: #eeeeeb;
+    --surface-3: #e2e2de;
+    --border: #e2e2de;
+
+    --text: #161616;
+    --text-muted: #6b6b6b;
+    --text-faint: #a8a8a4;
+
+    /* GitHub's link blue (light) */
+    --accent: #0969da;
+    --accent-hover: #0550ae;
+    --accent-ink: #ffffff;
+
+    --shadow: rgb(0 0 0 / 0.12);
+
+    /* GitHub's contribution-graph colors (light) */
+    --heat-0: #ebedf0;
+    --heat-1: #9be9a8;
+    --heat-2: #40c463;
+    --heat-3: #30a14e;
+    --heat-4: #216e39;
+  }
 }

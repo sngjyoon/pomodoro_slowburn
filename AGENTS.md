@@ -45,9 +45,11 @@ src/
   components/
     Timer/             # settings, countdown, controls
     Heatmap/           # 52-week grid, legend, tooltip
+    ThemeMenu/         # sun button + Auto/Light/Dark menu
   hooks/
     usePomodoro.ts     # wires lib/ to React state, storage, and ticking
     alerts.ts          # phase-end chime + browser notification
+    useTheme.ts        # theme preference: <html data-theme> + storage
   lib/
     timer.ts           # pure timer state machine
     sessions.ts        # session record type, validation, append
@@ -56,8 +58,9 @@ src/
     tags.ts            # tag list: defaults, add, remove/archive
     breakdown.ts       # per-tag totals + tag filter
     backup.ts          # history export/import (JSON file) + merge
+    theme.ts           # theme preference type + validation
   styles/
-    tokens.css         # colors, spacing, radii, fonts (light + dark)
+    tokens.css         # colors, spacing, radii, fonts (dark base + light overrides)
 ```
 
 Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
@@ -107,7 +110,7 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
 
 - 53 columns × 7 rows (weeks × weekdays), ending at today, weeks start on Sunday (match GitHub).
 - Bucket sessions by the **user's local calendar day** of the session start. A session spanning midnight is split across both days.
-- Intensity: 5 levels (0 = none, 1–4). Use fixed thresholds in minutes (e.g. 1–29, 30–89, 90–179, 180+) so colors mean the same thing over time; do not scale to the max day.
+- Intensity: 5 levels (0 = none, 1–4), scaled to the busiest day in the visible window (like GitHub): levels 1–4 cover (0, ¼], (¼, ½], (½, ¾] and (¾, 1] of that day's focus time, so the busiest day is always level 4. A day needs at least 1 minute to be colored at all. When a tag filter is on, the max is that tag's busiest day.
 - Month labels across the top, weekday labels (Mon/Wed/Fri) on the left, a "Less ▢▢▢▢▢ More" legend, and a headline like "412 sessions across 213 days in the last year" (sessions started in the window; days with a colored square). Filtered: "86 Teaching sessions across 54 days in the last year".
 - Hover/focus on a cell shows a tooltip: date + focused time (e.g. "Nov 15, 2026 — 2h 05m").
 - Cells are keyboard-focusable and have `aria-label`s.
@@ -115,7 +118,8 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
 ## Design
 
 - Minimalist and modern: generous whitespace, rounded cards, a large tabular-numeral countdown, no decoration that doesn't carry meaning.
-- Dark theme only: black/grey surfaces and neutral grey text. One accent color, `#9dc904` (lime), used sparingly — primary button, active toggle, running-phase indicator, and the heatmap.
+- Themes: Auto (follows the OS), Light, Dark; default Auto. A sun icon button in the page's top-right corner (above the settings card) opens the menu. Persisted at `slowburn:v1:theme`; `index.html` applies it before first paint. Dark: black/grey surfaces and neutral grey text. Light: off-white page, white cards, and the accent is GitHub's light-mode link blue (`#0969da`) with white text and icons on it (`--accent-ink`). All light values live in `tokens.css`.
+- Black/grey (or white/grey) surfaces and neutral grey text. One accent color, GitHub's blue (`#1f6feb` dark, the selected-year background on a profile's contribution graph; `#0969da` light, the link blue), with white text and icons on it, used sparingly — primary button, active toggle, and running-phase indicator. The heatmap uses GitHub's own green contribution-graph colors (light and dark sets), not the accent.
 - Suggested tokens (all colors live in `tokens.css`; components never hard-code hex values):
   ```css
   --bg: #0a0a0a;          /* page */
@@ -124,14 +128,14 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
   --border: #2a2a2a;
   --text: #ededed;
   --text-muted: #8a8a8a;
-  --accent: #9dc904;
-  --accent-ink: #0a0a0a;  /* text on accent */
-  /* heatmap levels 0–4 */
-  --heat-0: #1f1f1f;
-  --heat-1: #2f3d0a;
-  --heat-2: #4e6b06;
-  --heat-3: #769a05;
-  --heat-4: #9dc904;
+  --accent: #1f6feb;
+  --accent-ink: #ffffff;  /* text on accent */
+  /* heatmap levels 0–4: GitHub contribution-graph colors */
+  --heat-0: #161b22;      /* light theme: #ebedf0 */
+  --heat-1: #0e4429;      /*              #9be9a8 */
+  --heat-2: #006d32;      /*              #40c463 */
+  --heat-3: #26a641;      /*              #30a14e */
+  --heat-4: #39d353;      /*              #216e39 */
   ```
 - Font: system UI stack or Inter; tabular numerals for all times.
 - Locked settings: while the timer runs, the whole settings card, including History, is greyed out (dimmed + grayscale) and "Stop the timer to change settings" slides down out from under the settings card in the accent color, hand-written font (`--font-hand`: Informal Roman, falling back to Permanent Marker). It slides back up when the timer stops. The visible text is `aria-hidden`; a visually hidden live region carries the message.
@@ -142,7 +146,7 @@ Keep logic in `src/lib/` as pure, tested functions. Components stay thin.
 
 Test the logic, not the pixels:
 
-- `heatmap.ts`: day bucketing, midnight-spanning sessions, DST transitions, 52-week window boundaries, threshold levels.
+- `heatmap.ts`: day bucketing, midnight-spanning sessions, DST transitions, 52-week window boundaries, max-relative levels.
 - `timer.ts`: phase transitions, pause/resume, reload restoration from persisted state.
 - `sessions.ts`: storage read/write, corrupted JSON, missing storage.
 
@@ -157,4 +161,4 @@ Use fake timers / injected `now` rather than real waiting.
 
 ## Out of scope (for now)
 
-Accounts, sync, backend, light theme, task lists, multiple tags per session, tag colors, configurable long-break interval, statistics beyond the heatmap. Add to this list or move items into scope deliberately.
+Accounts, sync, backend, task lists, multiple tags per session, tag colors, configurable long-break interval, statistics beyond the heatmap. Add to this list or move items into scope deliberately.

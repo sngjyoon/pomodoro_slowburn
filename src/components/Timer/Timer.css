@@ -145,7 +145,7 @@
 }
 .settings fieldset:disabled {
   opacity: 0.4;
-  filter: grayscale(1); /* the lime toggle goes grey too */
+  filter: grayscale(1); /* the accent toggle goes grey too */
 }
 
 /* "Stop the timer…" slides down out of the card's bottom edge while locked. */
@@ -398,7 +398,7 @@
     background-color 150ms ease,
     border-color 150ms ease;
 }
-.tag-chip:hover:not(:disabled) {
+.tag-chip:hover:not(:disabled, [aria-pressed='true']) {
   background: var(--surface-2);
 }
 .tag-chip[aria-pressed='true'] {

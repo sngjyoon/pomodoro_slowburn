@@ -225,7 +225,7 @@
   background: var(--heat-3);
 }
 .breakdown-row[aria-pressed='true'] .breakdown-bar span {
-  background: var(--accent);
+  background: var(--heat-4);
 }
 
 .breakdown-tag {

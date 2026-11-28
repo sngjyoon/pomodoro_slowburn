@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Heatmap } from './components/Heatmap/Heatmap'
+import { ThemeMenu } from './components/ThemeMenu/ThemeMenu'
 import { Timer } from './components/Timer/Timer'
 import { usePomodoro } from './hooks/usePomodoro'
+import { useTheme } from './hooks/useTheme'
 import { filterSessions, tagBreakdown, taggedSessions, type TagFilter } from './lib/breakdown'
 import { buildHeatmap, dayKey, focusByDay } from './lib/heatmap'
 import { formatClock, remainingMs } from './lib/timer'
@@ -10,6 +12,7 @@ const PHASE_TITLES = { focus: 'Focus', break: 'Break', longBreak: 'Long break' }
 
 export default function App() {
   const p = usePomodoro()
+  const [theme, setTheme] = useTheme()
   const todayKey = dayKey(new Date(p.now))
 
   const [filter, setFilter] = useState<TagFilter>(null)
@@ -34,6 +37,7 @@ export default function App() {
   return (
     <main className="app">
       <h1 className="visually-hidden">Slowburn Pomodoro timer</h1>
+      <ThemeMenu theme={theme} onChange={setTheme} />
       <Timer
         settings={p.settings}
         timer={p.timer}

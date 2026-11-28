@@ -1,6 +1,6 @@
 // Per-tag focus totals for the heatmap's 52-week window, and the tag filter.
 
-import { addDays, dayKey, focusByDay, heatmapWindow, levelFor, startOfDay } from './heatmap'
+import { addDays, dayKey, focusByDay, heatmapWindow, isActiveDay, startOfDay } from './heatmap'
 import type { FocusSession } from './sessions'
 import type { Tag } from './tags'
 
@@ -47,7 +47,7 @@ const fromKey = (key: string) => {
 
 /** Streak of days with at least a minute of focus (the same rule that colors a heatmap square). */
 export function streakFor(sessions: readonly FocusSession[], now: number): Streak {
-  const days = new Set([...focusByDay(sessions)].filter(([, ms]) => levelFor(ms) > 0).map(([k]) => k))
+  const days = new Set([...focusByDay(sessions)].filter(([, ms]) => isActiveDay(ms)).map(([k]) => k))
 
   let longest = 0
   let run = 0
